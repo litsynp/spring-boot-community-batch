@@ -2,6 +2,7 @@ package com.litsynp.batch;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.litsynp.batch.domain.enums.Grade;
 import com.litsynp.batch.domain.enums.UserStatus;
 import com.litsynp.batch.repository.UserRepository;
 import java.time.LocalDateTime;
@@ -35,6 +36,7 @@ class InactiveUserJobTest {
         JobExecution jobExecution = jobLauncherTestUtils.launchJob(
                 new JobParametersBuilder()
                         .addDate("nowDate", nowDate) // Date는 JobParameterd에서 허용하는 파라미터 중 하나
+                        .addString("grade", Grade.FAMILY.name())
                         .toJobParameters());
 
         assertEquals(BatchStatus.COMPLETED, jobExecution.getStatus());

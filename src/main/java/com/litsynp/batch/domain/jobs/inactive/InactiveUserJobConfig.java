@@ -1,22 +1,23 @@
 package com.litsynp.batch.domain.jobs.inactive;
 
 import com.litsynp.batch.domain.User;
+import com.litsynp.batch.domain.enums.Grade;
 import com.litsynp.batch.domain.enums.UserStatus;
 import com.litsynp.batch.domain.jobs.inactive.listener.InactiveJobListener;
 import com.litsynp.batch.domain.jobs.inactive.listener.InactiveStepListener;
 import com.litsynp.batch.repository.UserRepository;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
 import javax.persistence.EntityManagerFactory;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
+import org.springframework.batch.core.configuration.annotation.JobScope;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.FlowBuilder;
@@ -34,6 +35,7 @@ import org.springframework.core.task.TaskExecutor;
 
 @Configuration
 @AllArgsConstructor
+@Slf4j
 public class InactiveUserJobConfig {
 
     private static final int CHUNK_SIZE = 15;
@@ -42,12 +44,27 @@ public class InactiveUserJobConfig {
 
     @Bean
     public Job inactiveUserJob(JobBuilderFactory jobBuilderFactory,
-            InactiveJobListener inactiveJobListener, Flow multiFlow) {
+            InactiveJobListener inactiveJobListener, Flow multiFlow, Step partitionerStep) {
         return jobBuilderFactory.get("inactiveUserJob")
                 .preventRestart()  // Job의 재실행을 막음
                 .listener(inactiveJobListener)  // Job Listener 등록
-                .start(multiFlow)
-                .end()
+                .start(partitionerStep)
+//                .start(multiFlow)
+//                .end()
+                .build();
+    }
+
+    @Bean
+    @JobScope  // Job 실행시마다 빈을 새로 생성한다.
+    public Step partitionerStep(StepBuilderFactory stepBuilderFactory, Step inactiveJobStep) {
+        return stepBuilderFactory
+                .get("partitionerStep")
+                // Partitioning을 사용하는 partitioner 프로퍼티에 Step 이름과  inactiveUserPartitioner 객체를 생성해 등록
+                .partitioner("partitionerStep", new InactiveUserPartitioner())
+                // Grade Enum 값이 3이므로 3 이상으로 지정하면 된다
+                .gridSize(5)
+                .step(inactiveJobStep)
+                .taskExecutor(taskExecutor())
                 .build();
     }
 
@@ -97,21 +114,21 @@ public class InactiveUserJobConfig {
     @Bean
     @StepScope
     public ListItemReader<User> inactiveUserReader(
-            // SpEL을 사용해 JobParameters에서 nowDate 파라미터를 전달
-            @Value("#{jobParameters[nowDate]}") Date nowDate, UserRepository userRepository) {
-        // Date -> LocalDateTime
-        LocalDateTime now = LocalDateTime.ofInstant(nowDate.toInstant(), ZoneId.systemDefault());
+            // SpEL을 사용해 등급값을 불러온다
+            @Value("#{stepExecutionContext[grade]}") String grade, UserRepository userRepository) {
+        log.info(Thread.currentThread().getName());
 
         // 기본 빈 생성은 싱글턴이지만, @StepScope를 사용하면 해당 메서드는 Step의 주기에 따라 새로운 빈을 생성한다.
         // 각 Step의 실행마다 새로 빈을 만들기 때문에 지연 생성이 가능하다.
         // 주의할 점은, @StepScope는 기본 프록시 모드가 반환되는 클래스 타입을 참조하기 때문에 @StepScope를 사용하면 반드시 구현된 반환 타입을 명시해 사용해야 한다.
         // 여기서는 QueueItemReader<User>라고 명시했다.
-        List<User> oldUsers = userRepository.findByUpdatedDateBeforeAndStatusEquals(
+        List<User> inactiveUsers = userRepository.findByUpdatedDateBeforeAndStatusEqualsAndGradeEquals(
                 LocalDateTime.now().minusYears(1),
-                UserStatus.ACTIVE);
+                UserStatus.ACTIVE,
+                Grade.valueOf(grade)); // 해당 등급의 휴면회원만 불러오도록 한다
 
         // ListItemReader은 DB에서 한꺼번에 읽어서 메모리에 올리므로 수십 만개 이상의 데이터에서 문제 발생 소지가 있다.
-        return new ListItemReader<>(oldUsers);
+        return new ListItemReader<>(inactiveUsers);
     }
 
     /**
