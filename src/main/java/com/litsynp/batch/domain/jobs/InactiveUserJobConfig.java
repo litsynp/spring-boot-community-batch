@@ -2,6 +2,8 @@ package com.litsynp.batch.domain.jobs;
 
 import com.litsynp.batch.domain.User;
 import com.litsynp.batch.domain.enums.UserStatus;
+import com.litsynp.batch.domain.jobs.listener.InactiveJobListener;
+import com.litsynp.batch.domain.jobs.listener.InactiveStepListener;
 import com.litsynp.batch.repository.UserRepository;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -33,19 +35,23 @@ public class InactiveUserJobConfig {
     private UserRepository userRepository;
 
     @Bean
-    public Job inactiveUserJob(JobBuilderFactory jobBuilderFactory, Step inactiveJobStep) {
+    public Job inactiveUserJob(JobBuilderFactory jobBuilderFactory,
+            InactiveJobListener inactiveJobListener, Step inactiveJobStep) {
         return jobBuilderFactory.get("inactiveUserJob")
                 .preventRestart()  // Job의 재실행을 막음
+                .listener(inactiveJobListener)  // Job Listener 등록
                 .start(inactiveJobStep)
                 .build();
     }
 
     @Bean
-    public Step inactiveJobStep(StepBuilderFactory stepBuilderFactory) {
+    public Step inactiveJobStep(StepBuilderFactory stepBuilderFactory,
+            InactiveStepListener inactiveStepListener) {
         // Input & Output 타입을 User로 설정하고, 쓰기 시에 청크 단위로 묶어서 writer() 메서드를 실행시킬 단위인 chunk 설정
         // 즉, 커밋의 단위가 10개
         return stepBuilderFactory.get("inactiveUserStep")
                 .<User, User>chunk(CHUNK_SIZE)
+                .listener(inactiveStepListener)
                 .reader(inactiveUserJpaReader())
                 .processor(inactiveUserProcessor())
                 .writer(inactiveUserWriter())
