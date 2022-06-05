@@ -2,9 +2,10 @@ package com.litsynp.batch.domain.jobs;
 
 import com.litsynp.batch.domain.User;
 import com.litsynp.batch.domain.enums.UserStatus;
-import com.litsynp.batch.domain.jobs.readers.QueueItemReader;
 import com.litsynp.batch.repository.UserRepository;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,10 +17,10 @@ import org.springframework.batch.core.configuration.annotation.JobBuilderFactory
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.item.ItemProcessor;
-import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.database.JpaItemWriter;
 import org.springframework.batch.item.database.JpaPagingItemReader;
 import org.springframework.batch.item.support.ListItemReader;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -53,7 +54,12 @@ public class InactiveUserJobConfig {
 
     @Bean
     @StepScope
-    public ListItemReader<User> inactiveUserReader() {
+    public ListItemReader<User> inactiveUserReader(
+            // SpEL을 사용해 JobParameters에서 nowDate 파라미터를 전달
+            @Value("#{jobParameters[nowDate]}") Date nowDate, UserRepository userRepository) {
+        // Date -> LocalDateTime
+        LocalDateTime now = LocalDateTime.ofInstant(nowDate.toInstant(), ZoneId.systemDefault());
+
         // 기본 빈 생성은 싱글턴이지만, @StepScope를 사용하면 해당 메서드는 Step의 주기에 따라 새로운 빈을 생성한다.
         // 각 Step의 실행마다 새로 빈을 만들기 때문에 지연 생성이 가능하다.
         // 주의할 점은, @StepScope는 기본 프록시 모드가 반환되는 클래스 타입을 참조하기 때문에 @StepScope를 사용하면 반드시 구현된 반환 타입을 명시해 사용해야 한다.
