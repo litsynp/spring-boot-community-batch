@@ -1,9 +1,9 @@
-package com.litsynp.batch.domain.jobs;
+package com.litsynp.batch.domain.jobs.inactive;
 
 import com.litsynp.batch.domain.User;
 import com.litsynp.batch.domain.enums.UserStatus;
-import com.litsynp.batch.domain.jobs.listener.InactiveJobListener;
-import com.litsynp.batch.domain.jobs.listener.InactiveStepListener;
+import com.litsynp.batch.domain.jobs.inactive.listener.InactiveJobListener;
+import com.litsynp.batch.domain.jobs.inactive.listener.InactiveStepListener;
 import com.litsynp.batch.repository.UserRepository;
 import java.time.LocalDateTime;
 import java.time.ZoneId;

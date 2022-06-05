@@ -1,4 +1,4 @@
-package com.litsynp.batch.domain.jobs.readers;
+package com.litsynp.batch.domain.jobs.inactive.readers;
 
 import java.util.LinkedList;
 import java.util.List;

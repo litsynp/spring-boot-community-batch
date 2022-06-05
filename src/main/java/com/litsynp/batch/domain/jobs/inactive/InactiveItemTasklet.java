@@ -1,4 +1,4 @@
-package com.litsynp.batch.domain.jobs;
+package com.litsynp.batch.domain.jobs.inactive;
 
 import com.litsynp.batch.domain.User;
 import com.litsynp.batch.domain.enums.UserStatus;

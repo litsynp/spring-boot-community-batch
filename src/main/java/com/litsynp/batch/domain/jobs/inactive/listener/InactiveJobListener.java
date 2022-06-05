@@ -1,4 +1,4 @@
-package com.litsynp.batch.domain.jobs.listener;
+package com.litsynp.batch.domain.jobs.inactive.listener;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.JobExecution;
