@@ -17,6 +17,7 @@ import org.springframework.batch.core.configuration.annotation.StepBuilderFactor
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemWriter;
+import org.springframework.batch.item.database.JpaItemWriter;
 import org.springframework.batch.item.database.JpaPagingItemReader;
 import org.springframework.batch.item.support.ListItemReader;
 import org.springframework.context.annotation.Bean;
@@ -120,8 +121,14 @@ public class InactiveUserJobConfig {
         };
     }
 
-    public ItemWriter<User> inactiveUserWriter() {
-        // Replacing ItemWriter write() method overriding with lambda function
-        return ((List<? extends User> users) -> userRepository.saveAll(users));
+//    public ItemWriter<User> inactiveUserWriter() {
+//        // Replacing ItemWriter write() method overriding with lambda function
+//        return ((List<? extends User> users) -> userRepository.saveAll(users));
+//    }
+
+    private JpaItemWriter<User> inactiveUserWriter() {
+        JpaItemWriter<User> jpaItemWriter = new JpaItemWriter<>();
+        jpaItemWriter.setEntityManagerFactory(entityManagerFactory);
+        return jpaItemWriter;
     }
 }
