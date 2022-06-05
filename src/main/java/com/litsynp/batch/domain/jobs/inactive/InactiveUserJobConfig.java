@@ -60,15 +60,18 @@ public class InactiveUserJobConfig {
 
     @Bean
     public Step inactiveJobStep(StepBuilderFactory stepBuilderFactory,
-            InactiveStepListener inactiveStepListener) {
+            InactiveStepListener inactiveStepListener, TaskExecutor taskExecutor) {
         // Input & Output 타입을 User로 설정하고, 쓰기 시에 청크 단위로 묶어서 writer() 메서드를 실행시킬 단위인 chunk 설정
         // 즉, 커밋의 단위가 10개
         return stepBuilderFactory.get("inactiveUserStep")
                 .<User, User>chunk(CHUNK_SIZE)
-                .listener(inactiveStepListener)
                 .reader(inactiveUserJpaReader())
                 .processor(inactiveUserProcessor())
                 .writer(inactiveUserWriter())
+                .taskExecutor(taskExecutor)
+                .listener(inactiveStepListener)
+                // 제한 횟수만큼만 스레드를 동시에 실행시킨다 (시스템에 할당된 스레드 풀의 크기보다 작은 값으로 설정해야 한다. 1로 설정하면 기존 동기화 방식과 같다. 2로 설정하면 스레드는 2개씩 실행시킨다.)
+                .throttleLimit(2)
                 .build();
     }
 
@@ -156,5 +159,11 @@ public class InactiveUserJobConfig {
         JpaItemWriter<User> jpaItemWriter = new JpaItemWriter<>();
         jpaItemWriter.setEntityManagerFactory(entityManagerFactory);
         return jpaItemWriter;
+    }
+
+    @Bean
+    public TaskExecutor taskExecutor() {
+        // Task에 할당되는 이름 설정 - 첫 번째 Task는 Batck_Task1
+        return new SimpleAsyncTaskExecutor("Batch_Task");
     }
 }
