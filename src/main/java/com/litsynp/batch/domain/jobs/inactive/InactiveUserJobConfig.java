@@ -11,6 +11,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.IntStream;
 import javax.persistence.EntityManagerFactory;
 import lombok.AllArgsConstructor;
 import org.springframework.batch.core.Job;
@@ -28,6 +29,8 @@ import org.springframework.batch.item.support.ListItemReader;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.SimpleAsyncTaskExecutor;
+import org.springframework.core.task.TaskExecutor;
 
 @Configuration
 @AllArgsConstructor
@@ -39,16 +42,32 @@ public class InactiveUserJobConfig {
 
     @Bean
     public Job inactiveUserJob(JobBuilderFactory jobBuilderFactory,
-            InactiveJobListener inactiveJobListener, Flow inactiveJobFlow) {
+            InactiveJobListener inactiveJobListener, Flow multiFlow) {
         return jobBuilderFactory.get("inactiveUserJob")
                 .preventRestart()  // Job의 재실행을 막음
                 .listener(inactiveJobListener)  // Job Listener 등록
-                .start(inactiveJobFlow)
+                .start(multiFlow)
                 .end()
                 .build();
     }
 
     @Bean
+    public Flow multiFlow(Step inactiveJobStep) {
+        Flow[] flows = new Flow[5];
+        // Flow 5개 생성
+        IntStream.range(0, flows.length).forEach(i ->
+                flows[i] = new FlowBuilder<Flow>("MultiFlow" + i)
+                        .from(inactiveJobFlow(inactiveJobStep))  // Flow(inactiveJobFlow) 5개 생성
+                        .end());
+
+        FlowBuilder<Flow> flowBuilder = new FlowBuilder<>("MultiFlowTest");
+        return flowBuilder
+                .split(taskExecutor())  // TaskExecutor 등록
+                .add(flows)  // flows 5개가 들어 있는 배열 등록
+                .build();
+    }
+
+    //    @Bean
     public Flow inactiveJobFlow(Step inactiveJobStep) {
         FlowBuilder<Flow> flowBuilder = new FlowBuilder<>("inactiveJobFlow");
         return flowBuilder
