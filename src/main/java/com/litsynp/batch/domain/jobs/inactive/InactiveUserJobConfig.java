@@ -18,6 +18,9 @@ import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;
+import org.springframework.batch.core.job.builder.FlowBuilder;
+import org.springframework.batch.core.job.flow.Flow;
+import org.springframework.batch.core.job.flow.FlowExecutionStatus;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.database.JpaItemWriter;
 import org.springframework.batch.item.database.JpaPagingItemReader;
@@ -36,12 +39,23 @@ public class InactiveUserJobConfig {
 
     @Bean
     public Job inactiveUserJob(JobBuilderFactory jobBuilderFactory,
-            InactiveJobListener inactiveJobListener, Step inactiveJobStep) {
+            InactiveJobListener inactiveJobListener, Flow inactiveJobFlow) {
         return jobBuilderFactory.get("inactiveUserJob")
                 .preventRestart()  // Job의 재실행을 막음
                 .listener(inactiveJobListener)  // Job Listener 등록
-                .start(inactiveJobStep)
+                .start(inactiveJobFlow)
+                .end()
                 .build();
+    }
+
+    @Bean
+    public Flow inactiveJobFlow(Step inactiveJobStep) {
+        FlowBuilder<Flow> flowBuilder = new FlowBuilder<>("inactiveJobFlow");
+        return flowBuilder
+                .start(new InactiveJobExecutionDecider())
+                .on(FlowExecutionStatus.FAILED.getName()).end()
+                .on(FlowExecutionStatus.COMPLETED.getName()).to(inactiveJobStep)
+                .end();
     }
 
     @Bean
